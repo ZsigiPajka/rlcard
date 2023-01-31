@@ -135,13 +135,13 @@ def print_card(cards):
                 space = ' '
 
             lines[0].append('┌─────────┐')
-            lines[1].append('│{}{}       │'.format(rank, space))
+            lines[1].append('│{}{}     │'.format(rank, space))
             lines[2].append('│         │')
             lines[3].append('│         │')
-            lines[4].append('│    {}    │'.format(suit))
+            lines[4].append('│    {}   │'.format(suit))
             lines[5].append('│         │')
             lines[6].append('│         │')
-            lines[7].append('│       {}{}│'.format(space, rank))
+            lines[7].append('│       {}│'.format(space, rank))
             lines[8].append('└─────────┘')
 
     for line in lines:

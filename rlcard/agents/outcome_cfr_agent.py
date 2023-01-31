@@ -1,15 +1,17 @@
-import collections
+import sys
 
+import numpy as np
+import collections
+import random
 import os
 import pickle
-import random
 
 from rlcard.utils.utils import *
 
 
-class ExternalCFRAgent():
+class OutcomeCFRAgent:
     ''' Implement CFR (chance sampling) algorithm
-    '''
+     '''
 
     def __init__(self, env, model_path='./external_cfr_model'):
         ''' Initilize Agent
@@ -23,14 +25,13 @@ class ExternalCFRAgent():
 
         # A policy is a dict state_str -> action probabilities
         self.policy = collections.defaultdict(list)
-        self.policy_sum = collections.defaultdict(list)
         self.average_policy = collections.defaultdict(np.array)
 
         # Regret is a dict state_str -> action regrets
         self.regrets = collections.defaultdict(np.array)
-        self.epsilon = 0.2
+        self.epsilon=0.05
+        self.exp_rate=0.1
         self.iteration = 0
-
     def train(self):
         ''' Do one iteration of CFR
         '''
@@ -39,9 +40,10 @@ class ExternalCFRAgent():
         # The regrets are recorded in traversal
         for player_id in range(self.env.num_players):
             self.env.reset()
-            self.traverse_tree(player_id)
+            probs = np.ones(self.env.num_players)
+            self.traverse_tree(player_id, probs, 1.0)
 
-    def traverse_tree(self, player_id):
+    def traverse_tree(self, player_id, probs, s):
         ''' Traverse the game tree, update the regrets
 
         Args:
@@ -53,10 +55,10 @@ class ExternalCFRAgent():
         '''
 
         if self.env.is_over():
-            return self.env.get_payoffs()[player_id]
+            if s == 0: s = sys.float_info.min+0.000000001
+            return self.env.get_payoffs()[player_id] / s, 1.0
 
         action_utilities = {}
-        state_utility = 0
         # state_utility = np.zeros(self.env.num_players)
         current_player = self.env.get_player_id()
         obs, legal_actions = self.get_state(current_player)
@@ -64,45 +66,45 @@ class ExternalCFRAgent():
             self.regrets[obs] = np.zeros(self.env.num_actions)
         if obs not in self.average_policy:
             self.average_policy[obs] = np.zeros(self.env.num_actions)
-        if obs not in self.policy_sum.keys():
-            self.policy_sum[obs] = np.zeros(self.env.num_actions)
 
         action_probs = self.regret_matching(obs)
+        other_player = 0 if current_player == 1 else 1
+        epsilon_policy = collections.defaultdict(np.array)
+        epsilon_policy[obs] = np.zeros(self.env.num_actions)
         # action_probs = self.action_probs(obs, legal_actions, self.policy)
-        if not current_player == player_id:
-            action = self.get_action(obs, legal_actions, self.average_policy)
-            self.env.step(action)
-            state_utility = self.traverse_tree(player_id)
+        if current_player == player_id:
+            for action in range(self.env.num_actions):
+                epsilon_policy[obs][action] = (self.epsilon / self.env.num_actions) + (1.0 - self.epsilon) * action_probs[action]
+            policy = epsilon_policy
+        else:
+            policy = self.policy
+        action = self.get_action(obs, legal_actions, policy)
+        self.env.step(action)
+        new_probs = probs.copy()
+        new_probs[current_player] *= (action_probs[action] if current_player == player_id else 1.0)
+        new_probs[other_player] *= (1.0 if current_player == player_id else action_probs[action])
+        state_utility, ptail = self.traverse_tree(player_id, new_probs, s * policy[obs][action])
+
+        counterfactual_prob = (np.prod(probs[:current_player]) *
+                               np.prod(probs[current_player + 1:]))
+        if current_player == player_id:
+            w = state_utility * counterfactual_prob
+            for a in legal_actions:
+                regret = w * (1.0 - action_probs[action]) * ptail if a == action else -w * ptail * action_probs[action]
+                self.regrets[obs][action] += regret
+        else:
             for action in legal_actions:
-                action_prob = action_probs[action]
-                self.average_policy[obs][action] += self.iteration * action_prob
-            # self.update_strategy_sum(obs, action_probs)
-            return state_utility
+                self.average_policy[obs][action] += self.iteration * (counterfactual_prob / s) * action_probs[action]
 
-        for action in legal_actions:
-            # action_prob = action_probs[action]
-            # Keep traversing the child state
-            self.env.step(action)
-            action_utilities[action] = self.traverse_tree(player_id)
-            self.env.step_back()
-            state_utility += action_probs[action] * action_utilities[action]
-
-        for action in legal_actions:
-            regret = action_utilities[action] - state_utility
-            self.regrets[obs][action] += regret
-        return state_utility
+        return state_utility, (ptail * action_probs[action])
 
     def get_action(self, obs, legal_actions, policy):
-        if random.uniform(0, 1) < self.epsilon:
-            action = random.randint(0, self.env.num_actions - 1)
-        else:
-            probs = self.action_probs(obs, legal_actions, policy)
-            action = np.random.choice(len(probs), p=probs)
+    #     if random.uniform(0, 1) < self.exp_rate:
+    #         action = random.randint(0, self.env.num_actions - 1)
+    #     else:
+        probs = self.action_probs(obs, legal_actions, policy)
+        action = np.random.choice(len(probs), p=probs)
         return action
-
-    def update_strategy_sum(self, obs, action_probs):
-        self.policy_sum[obs] += action_probs
-
 
     def regret_matching(self, obs):
         ''' Apply regret matching
@@ -112,8 +114,8 @@ class ExternalCFRAgent():
         '''
         regret = self.regrets[obs]
         positive_regret_sum = sum([r for r in regret if r > 0])
-        action_probs = np.zeros(self.env.num_actions)
 
+        action_probs = np.zeros(self.env.num_actions)
         if positive_regret_sum > 0:
             for action in range(self.env.num_actions):
                 action_probs[action] = max(0.0, regret[action] / positive_regret_sum)
@@ -222,3 +224,17 @@ class ExternalCFRAgent():
         self.iteration = pickle.load(iteration_file)
         iteration_file.close()
 
+    def update_avg_policy(self):
+        for obs in self.average_policy:
+            # if not self.calculated[obs]:
+            for action in range(self.env.num_actions):
+                self.average_policy[obs][action] = 0.0
+            normalizing_sum = 0.0
+            for action in range(self.env.num_actions):
+                normalizing_sum += self.policy_sum[obs][action]
+            for action in range(self.env.num_actions):
+                if normalizing_sum > 0:
+                    self.average_policy[obs][action] = self.policy_sum[obs][action] / normalizing_sum
+                else:
+                    self.average_policy[obs][action] = 1 / self.env.num_actions
+            # self.calculated[obs] = True

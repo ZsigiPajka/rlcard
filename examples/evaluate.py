@@ -4,10 +4,7 @@ import os
 import argparse
 
 import rlcard
-from rlcard.agents import (
-    DQNAgent,
-    RandomAgent,
-)
+
 from rlcard.utils import (
     get_device,
     set_seed,
@@ -75,7 +72,7 @@ if __name__ == '__main__':
         '--models',
         nargs='*',
         default=[
-            'experiments/leduc_holdem_dqn_result/model.pth',
+            'experiments/leduc_holdem_cfr_result/cfr_model',
             'random',
         ],
     )
@@ -87,12 +84,12 @@ if __name__ == '__main__':
     parser.add_argument(
         '--seed',
         type=int,
-        default=42,
+        default=420,
     )
     parser.add_argument(
         '--num_games',
         type=int,
-        default=10000,
+        default=20000,
     )
 
     args = parser.parse_args()

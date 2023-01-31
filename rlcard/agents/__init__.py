@@ -17,3 +17,4 @@ from rlcard.agents.human_agents.blackjack_human_agent import HumanAgent as Black
 from rlcard.agents.human_agents.uno_human_agent import HumanAgent as UnoHumanAgent
 from rlcard.agents.random_agent import RandomAgent
 from rlcard.agents.external_cfr_agent import ExternalCFRAgent
+from rlcard.agents.outcome_cfr_agent import OutcomeCFRAgent

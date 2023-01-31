@@ -5,7 +5,7 @@ import argparse
 
 import rlcard
 from rlcard.agents import (
-    ExternalCFRAgent,
+    OutcomeCFRAgent,
     RandomAgent,
 )
 from rlcard.utils import (
@@ -36,11 +36,11 @@ def train(args):
     set_seed(args.seed)
 
     # Initilize CFR Agent
-    agent = ExternalCFRAgent(
+    agent = OutcomeCFRAgent(
         env,
         os.path.join(
             args.log_dir,
-            'external_cfr_model',
+            'outcome_cfr_model',
         ),
     )
     agent.load()  # If we have saved model, we first load the model
@@ -67,20 +67,11 @@ def train(args):
                         args.num_eval_games
                     )[0]
                 )
-        # agent.avg_strategy()
-        # agent.save()  # Save model
-        # logger.log_performance(
-        #         env.timestep,
-        #         tournament(
-        #             eval_env,
-        #             args.num_eval_games
-        #         )[0]
-        #     )
 
         # Get the paths
         csv_path, fig_path = logger.csv_path, logger.fig_path
     # Plot the learning curve
-    plot_curve(csv_path, fig_path, 'cfr')
+    plot_curve(csv_path, fig_path, 'outcome_cfr')
 
 
 if __name__ == '__main__':
@@ -88,17 +79,17 @@ if __name__ == '__main__':
     parser.add_argument(
         '--seed',
         type=int,
-        default=42,
+        default=666,
     )
     parser.add_argument(
         '--num_episodes',
         type=int,
-        default=5500,
+        default=3500,
     )
     parser.add_argument(
         '--num_eval_games',
         type=int,
-        default=5000,
+        default=10000,
     )
     parser.add_argument(
         '--evaluate_every',
@@ -114,4 +105,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     train(args)
-
