@@ -21,14 +21,14 @@ def train(args):
     env = rlcard.make(
         'leduc-holdem',
         config={
-            'seed': 666,
+            'seed': 0,
             'allow_step_back': True,
         }
     )
     eval_env = rlcard.make(
         'leduc-holdem',
         config={
-            'seed': 666,
+            'seed': 0,
         }
     )
 
@@ -59,9 +59,8 @@ def train(args):
             # Evaluate the performance. Play with Random agents.
             if episode % args.evaluate_every == 0:
                 agent.save()  # Save model
-                # print('\nAverage game value: {}'.format(util[0] / (episode)))
                 logger.log_performance(
-                    env.timestep,
+                    episode,
                     tournament(
                         eval_env,
                         args.num_eval_games
@@ -79,22 +78,22 @@ if __name__ == '__main__':
     parser.add_argument(
         '--seed',
         type=int,
-        default=666,
+        default=0,
     )
     parser.add_argument(
         '--num_episodes',
         type=int,
-        default=3500,
+        default=7000,
     )
     parser.add_argument(
         '--num_eval_games',
         type=int,
-        default=10000,
+        default=2000,
     )
     parser.add_argument(
         '--evaluate_every',
         type=int,
-        default=500,
+        default=100,
     )
     parser.add_argument(
         '--log_dir',

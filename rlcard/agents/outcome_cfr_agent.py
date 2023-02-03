@@ -24,13 +24,12 @@ class OutcomeCFRAgent:
         self.model_path = model_path
 
         # A policy is a dict state_str -> action probabilities
-        self.policy = collections.defaultdict(list)
+        self.policy = collections.defaultdict(np.array)
         self.average_policy = collections.defaultdict(np.array)
 
         # Regret is a dict state_str -> action regrets
         self.regrets = collections.defaultdict(np.array)
-        self.epsilon=0.05
-        self.exp_rate=0.1
+        self.epsilon=0.14
         self.iteration = 0
     def train(self):
         ''' Do one iteration of CFR
@@ -53,9 +52,8 @@ class OutcomeCFRAgent:
         Returns:
             state_utilities (list): The expected utilities for all the players
         '''
-
         if self.env.is_over():
-            if s == 0: s = sys.float_info.min+0.000000001
+            if s == 0: s = 0.01
             return self.env.get_payoffs()[player_id] / s, 1.0
 
         action_utilities = {}
@@ -68,7 +66,6 @@ class OutcomeCFRAgent:
             self.average_policy[obs] = np.zeros(self.env.num_actions)
 
         action_probs = self.regret_matching(obs)
-        other_player = 0 if current_player == 1 else 1
         epsilon_policy = collections.defaultdict(np.array)
         epsilon_policy[obs] = np.zeros(self.env.num_actions)
         # action_probs = self.action_probs(obs, legal_actions, self.policy)
@@ -81,8 +78,7 @@ class OutcomeCFRAgent:
         action = self.get_action(obs, legal_actions, policy)
         self.env.step(action)
         new_probs = probs.copy()
-        new_probs[current_player] *= (action_probs[action] if current_player == player_id else 1.0)
-        new_probs[other_player] *= (1.0 if current_player == player_id else action_probs[action])
+        new_probs[player_id] *= action_probs[action]
         state_utility, ptail = self.traverse_tree(player_id, new_probs, s * policy[obs][action])
 
         counterfactual_prob = (np.prod(probs[:current_player]) *
@@ -99,9 +95,6 @@ class OutcomeCFRAgent:
         return state_utility, (ptail * action_probs[action])
 
     def get_action(self, obs, legal_actions, policy):
-    #     if random.uniform(0, 1) < self.exp_rate:
-    #         action = random.randint(0, self.env.num_actions - 1)
-    #     else:
         probs = self.action_probs(obs, legal_actions, policy)
         action = np.random.choice(len(probs), p=probs)
         return action
@@ -112,18 +105,16 @@ class OutcomeCFRAgent:
         Args:
             obs (string): The state_str
         '''
-        regret = self.regrets[obs]
-        positive_regret_sum = sum([r for r in regret if r > 0])
-
-        action_probs = np.zeros(self.env.num_actions)
-        if positive_regret_sum > 0:
-            for action in range(self.env.num_actions):
-                action_probs[action] = max(0.0, regret[action] / positive_regret_sum)
+        self.policy[obs] = self.regrets[obs]
+        for i in range(len(self.regrets[obs])):
+            if self.regrets[obs][i] < 0:
+                self.policy[obs][i] = 0
+        normalizing_sum = sum(self.policy[obs])
+        if normalizing_sum > 0:
+            self.policy[obs] = self.policy[obs] / normalizing_sum
         else:
-            for action in range(self.env.num_actions):
-                action_probs[action] = 1.0 / self.env.num_actions
-        self.policy[obs] = action_probs
-        return action_probs
+            self.policy[obs] = np.repeat(1 / self.env.num_actions, self.env.num_actions)
+        return self.policy[obs]
 
     def action_probs(self, obs, legal_actions, policy):
         ''' Obtain the action probabilities of the current state

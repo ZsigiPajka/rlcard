@@ -72,8 +72,8 @@ if __name__ == '__main__':
         '--models',
         nargs='*',
         default=[
+            'experiments/leduc_holdem_cfr_result/external_cfr_model',
             'experiments/leduc_holdem_cfr_result/cfr_model',
-            'random',
         ],
     )
     parser.add_argument(
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--seed',
         type=int,
-        default=420,
+        default=0,
     )
     parser.add_argument(
         '--num_games',

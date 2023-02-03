@@ -21,14 +21,14 @@ def train(args):
     env = rlcard.make(
         'leduc-holdem',
         config={
-            'seed': 666,
+            'seed': 0,
             'allow_step_back': True,
         }
     )
     eval_env = rlcard.make(
         'leduc-holdem',
         config={
-            'seed': 666,
+            'seed': 0,
         }
     )
 
@@ -58,29 +58,20 @@ def train(args):
             print('\rIteration {}'.format(episode), end='')
             # Evaluate the performance. Play with Random agents.
             if episode % args.evaluate_every == 0:
+                # agent.update_avg_strategy()
                 agent.save()  # Save model
-                # print('\nAverage game value: {}'.format(util[0] / (episode)))
                 logger.log_performance(
-                    env.timestep,
+                    episode,
                     tournament(
                         eval_env,
                         args.num_eval_games
                     )[0]
                 )
-        # agent.avg_strategy()
-        # agent.save()  # Save model
-        # logger.log_performance(
-        #         env.timestep,
-        #         tournament(
-        #             eval_env,
-        #             args.num_eval_games
-        #         )[0]
-        #     )
 
         # Get the paths
         csv_path, fig_path = logger.csv_path, logger.fig_path
     # Plot the learning curve
-    plot_curve(csv_path, fig_path, 'cfr')
+    plot_curve(csv_path, fig_path, 'external_cfr')
 
 
 if __name__ == '__main__':
@@ -93,17 +84,17 @@ if __name__ == '__main__':
     parser.add_argument(
         '--num_episodes',
         type=int,
-        default=5500,
+        default=3000,
     )
     parser.add_argument(
         '--num_eval_games',
         type=int,
-        default=5000,
+        default=2000,
     )
     parser.add_argument(
         '--evaluate_every',
         type=int,
-        default=500,
+        default=100,
     )
     parser.add_argument(
         '--log_dir',
