@@ -4,15 +4,22 @@ import os
 import argparse
 
 import rlcard
+from agents.vanilla_dqn.vanilla_dqn import Vanilla_DQN_agent
 
 from rlcard.utils import (
     get_device,
     set_seed,
-    tournament,
+    tournament, plot_history,
 )
 
 def load_model(model_path, env=None, position=None, device=None):
-    if os.path.isfile(model_path):  # Torch model
+    if model_path == 'experiments/double_dueling_dqn_model':
+        agent = Vanilla_DQN_agent()
+        agent.load(os.path.join(args.models[1],'ledh_against_random'))
+    elif model_path == 'experiments/vanilla_dqn_model':
+        agent = Vanilla_DQN_agent()
+        agent.load(os.path.join(args.models[1],'ledh_against_random'))
+    elif os.path.isfile(model_path):  # Torch model
         import torch
         agent = torch.load(model_path, map_location=device)
         agent.set_device(device)
@@ -48,6 +55,10 @@ def evaluate(args):
 
     # Evaluate
     rewards = tournament(env, args.num_games)
+    log_dir='experiments/evaluations/'
+    csv_path = os.path.join(log_dir, 'history.csv')
+    fig_path = os.path.join(log_dir, 'fig.png')
+    # plot_history(csv_path, fig_path, args.names)
     for position, reward in enumerate(rewards):
         print(position, args.models[position], reward)
 
@@ -74,6 +85,14 @@ if __name__ == '__main__':
         default=[
             'experiments/leduc_holdem_cfr_result/external_cfr_model',
             'experiments/leduc_holdem_cfr_result/cfr_model',
+        ],
+    )
+    parser.add_argument(
+        '--names',
+        nargs='*',
+        default=[
+            'external_cfr',
+            'double_dueling_dqn',
         ],
     )
     parser.add_argument(

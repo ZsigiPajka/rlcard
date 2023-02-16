@@ -1,6 +1,10 @@
+import csv
+import os
+
 import numpy as np
 
 from rlcard.games.base import Card
+
 
 def set_seed(seed):
     if seed is not None:
@@ -17,6 +21,7 @@ def set_seed(seed):
         import random
         random.seed(seed)
 
+
 def get_device():
     import torch
     if torch.cuda.is_available():
@@ -26,7 +31,8 @@ def get_device():
         device = torch.device("cpu")
         print("--> Running on the CPU")
 
-    return device    
+    return device
+
 
 def init_standard_deck():
     ''' Initialize a standard deck of 52 cards
@@ -38,6 +44,7 @@ def init_standard_deck():
     rank_list = ['A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K']
     res = [Card(suit, rank) for suit in suit_list for rank in rank_list]
     return res
+
 
 def init_54_deck():
     ''' Initialize a standard deck of 52 cards, BJ and RJ
@@ -51,6 +58,7 @@ def init_54_deck():
     res.append(Card('BJ', ''))
     res.append(Card('RJ', ''))
     return res
+
 
 def rank2int(rank):
     ''' Get the coresponding number of a rank.
@@ -84,6 +92,7 @@ def rank2int(rank):
         return 13
     return None
 
+
 def elegent_form(card):
     ''' Get a elegent form of a card string
 
@@ -93,10 +102,11 @@ def elegent_form(card):
     Returns:
         elegent_card (string): A nice form of card
     '''
-    suits = {'S': '♠', 'H': '♥', 'D': '♦', 'C': '♣','s': '♠', 'h': '♥', 'd': '♦', 'c': '♣' }
+    suits = {'S': '♠', 'H': '♥', 'D': '♦', 'C': '♣', 's': '♠', 'h': '♥', 'd': '♦', 'c': '♣'}
     rank = '10' if card[1] == 'T' else card[1]
 
     return suits[card[0]] + rank
+
 
 def print_card(cards):
     ''' Nicely print a card or list of cards
@@ -145,7 +155,8 @@ def print_card(cards):
             lines[8].append('└─────────┘')
 
     for line in lines:
-        print ('   '.join(line))
+        print('   '.join(line))
+
 
 def reorganize(trajectories, payoffs):
     ''' Reorganize the trajectory to make it RL friendly
@@ -162,18 +173,19 @@ def reorganize(trajectories, payoffs):
     new_trajectories = [[] for _ in range(num_players)]
 
     for player in range(num_players):
-        for i in range(0, len(trajectories[player])-2, 2):
-            if i ==len(trajectories[player])-3:
+        for i in range(0, len(trajectories[player]) - 2, 2):
+            if i == len(trajectories[player]) - 3:
                 reward = payoffs[player]
-                done =True
+                done = True
             else:
                 reward, done = 0, False
-            transition = trajectories[player][i:i+3].copy()
+            transition = trajectories[player][i:i + 3].copy()
             transition.insert(2, reward)
             transition.append(done)
 
             new_trajectories[player].append(transition)
     return new_trajectories
+
 
 def remove_illegal(action_probs, legal_actions):
     ''' Remove illegal actions and normalize the
@@ -194,20 +206,31 @@ def remove_illegal(action_probs, legal_actions):
         probs /= sum(probs)
     return probs
 
+
 def tournament(env, num):
-    ''' Evaluate he performance of the agents in the environment
+    ''' Evaluate the performance of the agents in the environment
 
     Args:
         env (Env class): The environment to be evaluated.
         num (int): The number of games to play.
 
     Returns:
-        A list of avrage payoffs for each player
+        A list of average payoffs for each player
     '''
+    log_dir = 'experiments/evaluations/'
+    csv_path = os.path.join(log_dir, 'history.csv')
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    csv_file = open(csv_path, 'w')
+    fieldnames = ['agent1', 'agent2']
+    writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+    writer.writeheader()
     payoffs = [0 for _ in range(env.num_players)]
     counter = 0
     while counter < num:
         _, _payoffs = env.run(is_training=False)
+        # print(_payoffs)
+        writer.writerow({'agent1': _payoffs[0], 'agent2': _payoffs[1]})
         if isinstance(_payoffs, list):
             for _p in _payoffs:
                 for i, _ in enumerate(payoffs):
@@ -219,9 +242,37 @@ def tournament(env, num):
             counter += 1
     for i, _ in enumerate(payoffs):
         payoffs[i] /= counter
+    csv_file.close()
     return payoffs
 
-def plot_curve(csv_path, save_path, algorithm):
+
+def plot_history(csv_path, fig_path, algs):
+    import matplotlib.pyplot as plt
+    with open(csv_path) as csvfile:
+        reader = csv.DictReader(csvfile)
+        a1 = []
+        a2 = []
+        for row in reader:
+            a1.append(float(row['agent1']) if float(row['agent1']) >= 0 else 0)
+            a2.append(float(row['agent2']) if float(row['agent2']) >= 0 else 0)
+        barWidth = 0.5
+        fig, ax = plt.subplots(figsize=(22, 8))
+        pos = np.arange(len(a1))
+        ax.bar(pos, a1, color='red', width=barWidth,
+               label=algs[0])
+        ax.bar(pos, a2, color='blue', width=barWidth,
+               label=algs[1])
+        ax.set(xlabel='episode', ylabel='reward')
+        ax.legend(loc='upper right')
+        ax.grid()
+        save_dir = os.path.dirname(fig_path)
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        fig.savefig(fig_path)
+
+
+def plot_curve(csv_path, save_path, a):
     ''' Read data from csv file and plot the results
     '''
     import os
@@ -235,7 +286,7 @@ def plot_curve(csv_path, save_path, algorithm):
             xs.append(int(row['episode']))
             ys.append(float(row['reward']))
         fig, ax = plt.subplots()
-        ax.plot(xs, ys, label=algorithm)
+        ax.plot(xs, ys, label=a)
         ax.set(xlabel='episode', ylabel='reward')
         ax.legend()
         ax.grid()
@@ -245,4 +296,3 @@ def plot_curve(csv_path, save_path, algorithm):
             os.makedirs(save_dir)
 
         fig.savefig(save_path)
-

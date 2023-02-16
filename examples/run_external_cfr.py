@@ -58,7 +58,7 @@ def train(args):
             print('\rIteration {}'.format(episode), end='')
             # Evaluate the performance. Play with Random agents.
             if episode % args.evaluate_every == 0:
-                # agent.update_avg_strategy()
+                agent.update_avg_policy()
                 agent.save()  # Save model
                 logger.log_performance(
                     episode,
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--num_episodes',
         type=int,
-        default=3000,
+        default=6000,
     )
     parser.add_argument(
         '--num_eval_games',

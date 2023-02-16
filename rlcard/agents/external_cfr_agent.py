@@ -28,7 +28,7 @@ class ExternalCFRAgent():
 
         # Regret is a dict state_str -> action regrets
         self.regrets = collections.defaultdict(np.array)
-        self.epsilon = 0.5
+        self.epsilon = 0.3
         self.iteration = 0
 
     def train(self):
@@ -64,19 +64,18 @@ class ExternalCFRAgent():
             self.regrets[obs] = np.zeros(self.env.num_actions)
         if obs not in self.average_policy:
             self.average_policy[obs] = np.zeros(self.env.num_actions)
-        if obs not in self.policy_sum:
-            self.policy_sum[obs] = np.zeros(self.env.num_actions)
 
         action_probs = self.regret_matching(obs)
         # action_probs = self.action_probs(obs, legal_actions, self.policy)
         if not current_player == player_id:
+            # if obs not in self.policy_sum:
+            #     self.policy_sum[obs] = np.zeros(self.env.num_actions)
             action = self.get_action(obs, legal_actions, self.policy)
             self.env.step(action)
             state_utility = self.traverse_tree(player_id)
             # for action in legal_actions:
             #     action_prob = action_probs[action]
-            #     self.average_policy[obs][action] += self.iteration * action_prob
-            # self.update_strategy_sum(obs, action_probs)
+            #     self.policy_sum[obs][action] +=  action_prob
             return state_utility
 
         for action in legal_actions:
@@ -87,16 +86,29 @@ class ExternalCFRAgent():
             self.env.step_back()
             state_utility += action_probs[action] * action_utilities[action]
 
+        if obs not in self.policy_sum:
+            self.policy_sum[obs] = np.zeros(self.env.num_actions)
         player_state_utility = state_utility[current_player]
         for action in legal_actions:
             regret = action_utilities[action][current_player] - player_state_utility
             self.regrets[obs][action] += regret
             action_prob = action_probs[action]
-            self.average_policy[obs][action] += self.iteration * action_prob
+            self.policy_sum[obs][action] += self.iteration * action_prob
         return state_utility
 
 
-
+    def update_avg_policy(self):
+        for obs in self.policy_sum:
+            for a in range(self.env.num_actions):
+                self.average_policy[obs][a] = 0
+            normalizing_sum = 0
+            for a in range(self.env.num_actions):
+                normalizing_sum += self.policy_sum[obs][a]
+            for a in range(self.env.num_actions):
+                if normalizing_sum > 0:
+                    self.average_policy[obs][a] = self.policy_sum[obs][a] / normalizing_sum
+                else:
+                    self.average_policy[obs][a] = 1.0 / self.env.num_actions
     def get_action(self, obs, legal_actions, policy):
         if random.uniform(0, 1) < self.epsilon:
             action = random.randint(0, self.env.num_actions - 1)

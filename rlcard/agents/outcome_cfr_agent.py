@@ -26,11 +26,13 @@ class OutcomeCFRAgent:
         # A policy is a dict state_str -> action probabilities
         self.policy = collections.defaultdict(np.array)
         self.average_policy = collections.defaultdict(np.array)
+        self.policy_sum = collections.defaultdict(np.array)
 
         # Regret is a dict state_str -> action regrets
         self.regrets = collections.defaultdict(np.array)
-        self.epsilon=0.14
+        self.epsilon = 0.6
         self.iteration = 0
+
     def train(self):
         ''' Do one iteration of CFR
         '''
@@ -53,11 +55,10 @@ class OutcomeCFRAgent:
             state_utilities (list): The expected utilities for all the players
         '''
         if self.env.is_over():
-            if s == 0: s = 0.01
-            return self.env.get_payoffs()[player_id] / s, 1.0
+            if s == 0: s = 0.05
+            return self.env.get_payoffs() / s, 1.0
 
-        action_utilities = {}
-        # state_utility = np.zeros(self.env.num_players)
+        state_utility = np.zeros(self.env.num_players)
         current_player = self.env.get_player_id()
         obs, legal_actions = self.get_state(current_player)
         if obs not in self.regrets:
@@ -71,28 +72,47 @@ class OutcomeCFRAgent:
         # action_probs = self.action_probs(obs, legal_actions, self.policy)
         if current_player == player_id:
             for action in range(self.env.num_actions):
-                epsilon_policy[obs][action] = (self.epsilon / self.env.num_actions) + (1.0 - self.epsilon) * action_probs[action]
+                epsilon_policy[obs][action] = (self.epsilon / self.env.num_actions) + (1.0 - self.epsilon) * \
+                                              action_probs[action]
             policy = epsilon_policy
         else:
             policy = self.policy
         action = self.get_action(obs, legal_actions, policy)
         self.env.step(action)
         new_probs = probs.copy()
-        new_probs[player_id] *= action_probs[action]
+        # if current_player == player_id:
+        #     new_probs[player_id] *= action_probs[action]
+        # else:
+        new_probs[current_player] *= action_probs[action]
         state_utility, ptail = self.traverse_tree(player_id, new_probs, s * policy[obs][action])
-
         counterfactual_prob = (np.prod(probs[:current_player]) *
                                np.prod(probs[current_player + 1:]))
+
         if current_player == player_id:
-            w = state_utility * counterfactual_prob
+            w = state_utility[player_id] * counterfactual_prob
             for a in legal_actions:
                 regret = w * (1.0 - action_probs[action]) * ptail if a == action else -w * ptail * action_probs[action]
                 self.regrets[obs][action] += regret
         else:
+            if obs not in self.policy_sum:
+                self.policy_sum[obs] = np.zeros(self.env.num_actions)
             for action in legal_actions:
-                self.average_policy[obs][action] += self.iteration * (counterfactual_prob / s) * action_probs[action]
+                self.policy_sum[obs][action] += (counterfactual_prob / s) * action_probs[action] * self.iteration
 
         return state_utility, (ptail * action_probs[action])
+
+    def update_avg_policy(self):
+        for obs in self.policy_sum:
+            for a in range(self.env.num_actions):
+                self.average_policy[obs][a] = 0
+            normalizing_sum = 0
+            for a in range(self.env.num_actions):
+                normalizing_sum += self.policy_sum[obs][a]
+            for a in range(self.env.num_actions):
+                if normalizing_sum > 0:
+                    self.average_policy[obs][a] = self.policy_sum[obs][a] / normalizing_sum
+                else:
+                    self.average_policy[obs][a] = 1.0 / self.env.num_actions
 
     def get_action(self, obs, legal_actions, policy):
         probs = self.action_probs(obs, legal_actions, policy)
@@ -215,17 +235,3 @@ class OutcomeCFRAgent:
         self.iteration = pickle.load(iteration_file)
         iteration_file.close()
 
-    def update_avg_policy(self):
-        for obs in self.average_policy:
-            # if not self.calculated[obs]:
-            for action in range(self.env.num_actions):
-                self.average_policy[obs][action] = 0.0
-            normalizing_sum = 0.0
-            for action in range(self.env.num_actions):
-                normalizing_sum += self.policy_sum[obs][action]
-            for action in range(self.env.num_actions):
-                if normalizing_sum > 0:
-                    self.average_policy[obs][action] = self.policy_sum[obs][action] / normalizing_sum
-                else:
-                    self.average_policy[obs][action] = 1 / self.env.num_actions
-            # self.calculated[obs] = True
