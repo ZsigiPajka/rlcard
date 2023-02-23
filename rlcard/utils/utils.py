@@ -207,7 +207,45 @@ def remove_illegal(action_probs, legal_actions):
     return probs
 
 
-def tournament(env, num):
+def multy_tournament(env, num):
+    payoffs = [0 for _ in range(env.num_players)]
+    counter = 0
+    rewards = []
+    while counter < num:
+        _, _payoffs = env.run(is_training=False)
+        if isinstance(_payoffs, list):
+            for _p in _payoffs:
+                for i, _ in enumerate(payoffs):
+                    payoffs[i] += _p[i]
+                counter += 1
+        else:
+            for i, _ in enumerate(payoffs):
+                payoffs[i] += _payoffs[i]
+            counter += 1
+        if counter % 100 == 0:
+            rewards.append(payoffs[1] / 100)
+            payoffs = [0 for _ in range(env.num_players)]
+    return rewards
+
+
+def plot_stats(rewards, save_path, labels):
+    import os
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(15, 7))
+    xs = np.arange(len(rewards[0]))
+    for (label, reward) in zip(labels, rewards):
+        ax.plot(xs, reward, label=label)
+    ax.set(xlabel='episode', ylabel='reward')
+    ax.legend(loc='upper right')
+    ax.grid()
+    save_dir = os.path.dirname(save_path)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    fig.savefig(save_path)
+
+
+def tournament(env, num, agents, detailed):
     ''' Evaluate the performance of the agents in the environment
 
     Args:
@@ -217,20 +255,20 @@ def tournament(env, num):
     Returns:
         A list of average payoffs for each player
     '''
-    log_dir = 'experiments/evaluations/'
-    csv_path = os.path.join(log_dir, 'history.csv')
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    csv_file = open(csv_path, 'w')
-    fieldnames = ['agent1', 'agent2']
-    writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-    writer.writeheader()
+    if detailed:
+        log_dir = 'experiments/evaluations/'
+        csv_path = os.path.join(log_dir, 'history.csv')
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        csv_file = open(csv_path, 'w')
+        writer = csv.DictWriter(csv_file, fieldnames=agents)
+        writer.writeheader()
     payoffs = [0 for _ in range(env.num_players)]
     counter = 0
     while counter < num:
         _, _payoffs = env.run(is_training=False)
-        # print(_payoffs)
-        writer.writerow({'agent1': _payoffs[0], 'agent2': _payoffs[1]})
+        if detailed:
+            writer.writerow({agents[0]: _payoffs[0], agents[1]: _payoffs[1]})
         if isinstance(_payoffs, list):
             for _p in _payoffs:
                 for i, _ in enumerate(payoffs):
@@ -242,26 +280,29 @@ def tournament(env, num):
             counter += 1
     for i, _ in enumerate(payoffs):
         payoffs[i] /= counter
-    csv_file.close()
+    if detailed:
+        csv_file.close()
     return payoffs
 
 
-def plot_history(csv_path, fig_path, algs):
+def plot_history(csv_path, fig_path):
     import matplotlib.pyplot as plt
     with open(csv_path) as csvfile:
         reader = csv.DictReader(csvfile)
         a1 = []
         a2 = []
+        header = reader.fieldnames
         for row in reader:
-            a1.append(float(row['agent1']) if float(row['agent1']) >= 0 else 0)
-            a2.append(float(row['agent2']) if float(row['agent2']) >= 0 else 0)
+            a1.append(float(row[header[0]]) if float(row[header[0]]) >= 0 else 0)
+            a2.append(float(row[header[1]]) if float(row[header[1]]) >= 0 else 0)
         barWidth = 0.5
+
         fig, ax = plt.subplots(figsize=(22, 8))
         pos = np.arange(len(a1))
         ax.bar(pos, a1, color='red', width=barWidth,
-               label=algs[0])
+               label=header[0])
         ax.bar(pos, a2, color='blue', width=barWidth,
-               label=algs[1])
+               label=header[1])
         ax.set(xlabel='episode', ylabel='reward')
         ax.legend(loc='upper right')
         ax.grid()

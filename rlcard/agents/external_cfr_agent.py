@@ -96,7 +96,6 @@ class ExternalCFRAgent():
             self.policy_sum[obs][action] += self.iteration * action_prob
         return state_utility
 
-
     def update_avg_policy(self):
         for obs in self.policy_sum:
             for a in range(self.env.num_actions):
@@ -109,6 +108,7 @@ class ExternalCFRAgent():
                     self.average_policy[obs][a] = self.policy_sum[obs][a] / normalizing_sum
                 else:
                     self.average_policy[obs][a] = 1.0 / self.env.num_actions
+
     def get_action(self, obs, legal_actions, policy):
         if random.uniform(0, 1) < self.epsilon:
             action = random.randint(0, self.env.num_actions - 1)

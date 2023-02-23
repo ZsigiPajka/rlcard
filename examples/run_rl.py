@@ -81,6 +81,8 @@ def train(args):
                     tournament(
                         env,
                         args.num_eval_games,
+                        ['rl', 'random'],
+                        False,
                     )[0]
                 )
 

@@ -62,7 +62,9 @@ def train(args):
                     episode,
                     tournament(
                         eval_env,
-                        args.num_eval_games
+                        args.num_eval_games,
+                        ['chance', 'random'],
+                        False
                     )[0]
                 )
 
