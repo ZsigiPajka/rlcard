@@ -263,12 +263,19 @@ def tournament(env, num, agents, detailed):
         csv_file = open(csv_path, 'w')
         writer = csv.DictWriter(csv_file, fieldnames=agents)
         writer.writeheader()
+        results = np.zeros(3)
     payoffs = [0 for _ in range(env.num_players)]
     counter = 0
     while counter < num:
         _, _payoffs = env.run(is_training=False)
         if detailed:
             writer.writerow({agents[0]: _payoffs[0], agents[1]: _payoffs[1]})
+            if _payoffs[0] > 0:
+                results[0] += 1
+            elif _payoffs[0] == 0:
+                results[1] += 1
+            else:
+                results[2] += 1
         if isinstance(_payoffs, list):
             for _p in _payoffs:
                 for i, _ in enumerate(payoffs):
@@ -282,6 +289,7 @@ def tournament(env, num, agents, detailed):
         payoffs[i] /= counter
     if detailed:
         csv_file.close()
+        print('Agent 0: WINS:'+str(int(results[0]))+' TIES: '+str(int(results[1]))+' LOSSES: '+str(int(results[2])))
     return payoffs
 
 

@@ -65,7 +65,6 @@ def prepare(args):
 
 def multy_evaluate(args):
     env = prepare(args)
-    # print(args.models, args.names. args.type)
     rewards = multy_tournament(env, args.num_games)
     return rewards
 
@@ -180,6 +179,8 @@ if __name__ == '__main__':
     args = parser.parse_args(['--models',
                               'experiments/leduc_holdem_cfr_result/external_cfr_model',
                               'random',
-                              '--names', 'outcome', 'random']
+                              '--names', 'external', 'random',
+                              '--type', 'cfr'
+                              ]
                              )
     evaluate(args, True)
