@@ -15,7 +15,6 @@
 # limitations under the License.
 
 ''' Neural Fictitious Self-Play (NFSP) agent implemented in TensorFlow.
-
 See the paper https://arxiv.org/abs/1603.01121 for more details.
 '''
 
@@ -64,7 +63,6 @@ class NFSPAgent(object):
                  evaluate_with='average_policy',
                  device=None):
         ''' Initialize the NFSP agent.
-
         Args:
             num_actions (int): The number of actions.
             state_shape (list): The shape of the state space.
@@ -147,7 +145,6 @@ class NFSPAgent(object):
 
     def feed(self, ts):
         ''' Feed data to inner RL agent
-
         Args:
             ts (list): A list of 5 elements that represent the transition.
         '''
@@ -159,10 +156,8 @@ class NFSPAgent(object):
 
     def step(self, state):
         ''' Returns the action to be taken.
-
         Args:
             state (dict): The current state
-
         Returns:
             action (int): An action id
         '''
@@ -183,10 +178,8 @@ class NFSPAgent(object):
 
     def eval_step(self, state):
         ''' Use the average policy for evaluation purpose
-
         Args:
             state (dict): The current state.
-
         Returns:
             action (int): An action id.
             info (dict): A dictionary containing information
@@ -218,7 +211,6 @@ class NFSPAgent(object):
             Not connected to computation graph
         Args:
             info_state (numpy.array): An obervation.
-
         Returns:
             action_probs (numpy.array): The predicted action probability.
         '''
@@ -234,9 +226,7 @@ class NFSPAgent(object):
 
     def _add_transition(self, state, probs):
         ''' Adds the new transition to the reservoir buffer.
-
         Transitions are in the form (state, probs).
-
         Args:
             state (numpy.array): The state.
             probs (numpy.array): The probabilities of each action.
@@ -248,10 +238,8 @@ class NFSPAgent(object):
 
     def train_sl(self):
         ''' Compute the loss on sampled transitions and perform a avg-network update.
-
         If there are not enough elements in the buffer, no loss is computed and
         `None` is returned instead.
-
         Returns:
             loss (float): The average loss obtained on this batch of transitions or `None`.
         '''
@@ -299,7 +287,6 @@ class AveragePolicyNetwork(nn.Module):
         ''' Initialize the policy network.  It's just a bunch of ReLU
         layers with no activation on the final one, initialized with
         Xavier (sonnet.nets.MLP and tensorflow defaults)
-
         Args:
             num_actions (int): number of output actions
             state_shape (list): shape of state tensor for each sample
@@ -323,10 +310,8 @@ class AveragePolicyNetwork(nn.Module):
 
     def forward(self, s):
         ''' Log action probabilities of each action from state
-
         Args:
             s (Tensor): (batch, state_shape) state tensor
-
         Returns:
             log_action_probs (Tensor): (batch, num_actions)
         '''
@@ -336,10 +321,8 @@ class AveragePolicyNetwork(nn.Module):
 
 class ReservoirBuffer(object):
     ''' Allows uniform sampling over a stream of data.
-
     This class supports the storage of arbitrary elements, such as observation
     tensors, integer actions, etc.
-
     See https://en.wikipedia.org/wiki/Reservoir_sampling for more details.
     '''
 
@@ -352,7 +335,6 @@ class ReservoirBuffer(object):
 
     def add(self, element):
         ''' Potentially adds `element` to the reservoir buffer.
-
         Args:
             element (object): data to be added to the reservoir buffer.
         '''
@@ -366,13 +348,10 @@ class ReservoirBuffer(object):
 
     def sample(self, num_samples):
         ''' Returns `num_samples` uniformly sampled from the buffer.
-
         Args:
             num_samples (int): The number of samples to draw.
-
         Returns:
             An iterable over `num_samples` random elements of the buffer.
-
         Raises:
             ValueError: If there are less than `num_samples` elements in the buffer
         '''

@@ -58,14 +58,15 @@ def train(args):
             # Evaluate the performance. Play with Random agents.
             if episode % args.evaluate_every == 0:
                 agent.save() # Save model
+                rewards, report = tournament(
+                    eval_env,
+                    args.num_eval_games,
+                    ['chance', 'random'],
+                    False
+                )
                 logger.log_performance(
                     episode,
-                    tournament(
-                        eval_env,
-                        args.num_eval_games,
-                        ['chance', 'random'],
-                        False
-                    )[0]
+                    rewards[0]
                 )
 
         # Get the paths
@@ -74,6 +75,7 @@ def train(args):
     plot_curve(csv_path, fig_path, 'cfr')
 
 if __name__ == '__main__':
+    # create options for parser
     parser = argparse.ArgumentParser("CFR example in RLCard")
     parser.add_argument(
         '--seed',
@@ -102,6 +104,6 @@ if __name__ == '__main__':
     )
 
     args = parser.parse_args()
-
+    # train model with options from parser
     train(args)
     

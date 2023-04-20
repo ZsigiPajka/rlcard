@@ -1,6 +1,5 @@
 import collections
 
-import os
 import pickle
 import random
 
@@ -28,6 +27,7 @@ class ExternalCFRAgent():
 
         # Regret is a dict state_str -> action regrets
         self.regrets = collections.defaultdict(np.array)
+        # probability of choosing random action, outside of policy
         self.epsilon = 0.3
         self.iteration = 0
 
@@ -51,52 +51,55 @@ class ExternalCFRAgent():
         Returns:
             state_utilities (list): The expected utilities for all the players
         '''
-
+        # on terminal node, return payoffs
         if self.env.is_over():
             return self.env.get_payoffs()
 
         action_utilities = {}
         state_utility = 0
-        # state_utility = np.zeros(self.env.num_players)
+        # get current player
         current_player = self.env.get_player_id()
+        # get legal actions and state
         obs, legal_actions = self.get_state(current_player)
+        # insert state into regrets and policy if not present
         if obs not in self.regrets:
             self.regrets[obs] = np.zeros(self.env.num_actions)
         if obs not in self.average_policy:
             self.average_policy[obs] = np.zeros(self.env.num_actions)
-
+        # get action probability distribution trough regret matching
         action_probs = self.regret_matching(obs)
-        # action_probs = self.action_probs(obs, legal_actions, self.policy)
+        # non traversing player chooses and action and plays it
         if not current_player == player_id:
-            # if obs not in self.policy_sum:
-            #     self.policy_sum[obs] = np.zeros(self.env.num_actions)
             action = self.get_action(obs, legal_actions, self.policy)
             self.env.step(action)
+            # get state utility recursively from all games up to terminal node and return it to previous states
             state_utility = self.traverse_tree(player_id)
-            # for action in legal_actions:
-            #     action_prob = action_probs[action]
-            #     self.policy_sum[obs][action] +=  action_prob
             return state_utility
-
+        # traversing player iterates over all actions, plays them amd summarise their utility into state utility
         for action in legal_actions:
-            # action_prob = action_probs[action]
-            # Keep traversing the child state
             self.env.step(action)
             action_utilities[action] = self.traverse_tree(player_id)
             self.env.step_back()
             state_utility += action_probs[action] * action_utilities[action]
-
+        # insert state into policy sum if not present
         if obs not in self.policy_sum:
             self.policy_sum[obs] = np.zeros(self.env.num_actions)
+        # extract state utility for traversing player
         player_state_utility = state_utility[current_player]
+        # for every legal action calculate regrets and policy sum
         for action in legal_actions:
             regret = action_utilities[action][current_player] - player_state_utility
             self.regrets[obs][action] += regret
             action_prob = action_probs[action]
             self.policy_sum[obs][action] += self.iteration * action_prob
+        # return state utility to previous state
         return state_utility
 
     def update_avg_policy(self):
+        '''
+        Calculates avg policy, which model uses to choose actions during gameplay
+        '''
+        # iterate over all states
         for obs in self.policy_sum:
             for a in range(self.env.num_actions):
                 self.average_policy[obs][a] = 0
@@ -110,6 +113,16 @@ class ExternalCFRAgent():
                     self.average_policy[obs][a] = 1.0 / self.env.num_actions
 
     def get_action(self, obs, legal_actions, policy):
+        '''
+        Returns action according to policy using wighted random choice
+        Args:
+            obs (string): The state_str
+            legal_actions (list): Indices of legal actions
+            policy (dict): The used policy
+        Returns:
+            action (int): index of selected action
+        '''
+        # with epsilon probability, choose random action outside of policy
         if random.uniform(0, 1) < self.epsilon:
             action = random.randint(0, self.env.num_actions - 1)
         else:

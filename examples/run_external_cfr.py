@@ -60,14 +60,15 @@ def train(args):
             if episode % args.evaluate_every == 0:
                 agent.update_avg_policy()
                 agent.save()  # Save model
+                rewards, report = tournament(
+                    eval_env,
+                    args.num_eval_games,
+                    ['external', 'random'],
+                    False
+                )
                 logger.log_performance(
                     episode,
-                    tournament(
-                        eval_env,
-                        args.num_eval_games,
-                        ['external','random'],
-                        False
-                    )[0]
+                    rewards[0]
                 )
 
         # Get the paths
@@ -77,6 +78,7 @@ def train(args):
 
 
 if __name__ == '__main__':
+    # create options for parser
     parser = argparse.ArgumentParser("CFR example in RLCard")
     parser.add_argument(
         '--seed',
@@ -105,6 +107,6 @@ if __name__ == '__main__':
     )
 
     args = parser.parse_args()
-
+    # train model with options from parser
     train(args)
 

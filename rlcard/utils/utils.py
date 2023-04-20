@@ -208,11 +208,24 @@ def remove_illegal(action_probs, legal_actions):
 
 
 def multy_tournament(env, num):
+    ''' Plays tournament between 2 agents set in env
+        every 100 tournaments, record mean reward
+
+        Args:
+            env: enviroment with agents for playing
+            num: number of games
+
+
+        Returns:
+            rewards (array): recorded mean rewards
+
+        '''
     payoffs = [0 for _ in range(env.num_players)]
     counter = 0
     rewards = []
     while counter < num:
         _, _payoffs = env.run(is_training=False)
+        # record rewards from one game
         if isinstance(_payoffs, list):
             for _p in _payoffs:
                 for i, _ in enumerate(payoffs):
@@ -222,6 +235,7 @@ def multy_tournament(env, num):
             for i, _ in enumerate(payoffs):
                 payoffs[i] += _payoffs[i]
             counter += 1
+        # every 100 iterations, record mean reward
         if counter % 100 == 0:
             rewards.append(payoffs[1] / 100)
             payoffs = [0 for _ in range(env.num_players)]
@@ -229,16 +243,33 @@ def multy_tournament(env, num):
 
 
 def plot_stats(rewards, save_path, labels):
+    '''
+    Plot graph from provided array into specified location with specified labels
+        Args:
+            rewards(array): values to plot
+            save_path(str): save location
+            labels(str array): labels to display in graph
+    '''
     import os
     import matplotlib.pyplot as plt
-
+    # prepare graph parapeters
     fig, ax = plt.subplots(figsize=(15, 7))
     xs = np.arange(len(rewards[0]))
+    # plot values
     for (label, reward) in zip(labels, rewards):
         ax.plot(xs, reward, label=label)
-    ax.set(xlabel='episode', ylabel='reward')
-    ax.legend(loc='upper right')
+    # name axis
+    ax.set_xlabel('episode', fontsize=21)
+    ax.set_ylabel('reward', fontsize=21)
+    # add labels
+    ax.legend(loc='upper right', fontsize=21, fancybox=True, framealpha=0.4)
+    # specify tics
+    for t in plt.xticks()[1]:
+        t.set_fontsize(21)
+    for t in plt.yticks()[1]:
+        t.set_fontsize(21)
     ax.grid()
+    # save graph
     save_dir = os.path.dirname(save_path)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -251,10 +282,14 @@ def tournament(env, num, agents, detailed):
     Args:
         env (Env class): The environment to be evaluated.
         num (int): The number of games to play.
+        agents(str array): names of agents which are used in evaluation
+        detailed(bool): parameter that defines, if evaluation should be detailed
 
     Returns:
-        A list of average payoffs for each player
+        payoffs: A list of average payoffs for each player
+        report(str): A string containing number of wins, draws and loses for each agent
     '''
+    # prepare csv for all rewards, if detailed
     if detailed:
         log_dir = 'experiments/evaluations/'
         csv_path = os.path.join(log_dir, 'history.csv')
@@ -268,6 +303,7 @@ def tournament(env, num, agents, detailed):
     counter = 0
     while counter < num:
         _, _payoffs = env.run(is_training=False)
+        # record all losses, draws and wins, if detailed
         if detailed:
             writer.writerow({agents[0]: _payoffs[0], agents[1]: _payoffs[1]})
             if _payoffs[0] > 0:
@@ -276,6 +312,7 @@ def tournament(env, num, agents, detailed):
                 results[1] += 1
             else:
                 results[2] += 1
+        # record rewards from one game
         if isinstance(_payoffs, list):
             for _p in _payoffs:
                 for i, _ in enumerate(payoffs):
@@ -285,34 +322,55 @@ def tournament(env, num, agents, detailed):
             for i, _ in enumerate(payoffs):
                 payoffs[i] += _payoffs[i]
             counter += 1
+    # calculate mean reward through all games
     for i, _ in enumerate(payoffs):
         payoffs[i] /= counter
+    # if detailed, close csv and construct report string with wins, losses and draws
     if detailed:
         csv_file.close()
-        print('Agent 0: WINS:'+str(int(results[0]))+' TIES: '+str(int(results[1]))+' LOSSES: '+str(int(results[2])))
-    return payoffs
+        report = agents[0] + ': WINS:' + str(int(results[0])) + ' TIES: ' + str(int(results[1])) + ' LOSSES: ' + str(
+            int(results[2]))
+        print(report)
+        return payoffs, report
+    report = ''
+    return payoffs, report
 
 
 def plot_history(csv_path, fig_path):
+    '''
+       Plot graph from provided csv path into specified location
+           Args:
+               csv_path(str): path to csv file
+               fig_path(str): save location
+       '''
     import matplotlib.pyplot as plt
+    # open csv to read from
     with open(csv_path) as csvfile:
         reader = csv.DictReader(csvfile)
         a1 = []
         a2 = []
         header = reader.fieldnames
+        # read values from csv
         for row in reader:
             a1.append(float(row[header[0]]) if float(row[header[0]]) >= 0 else 0)
             a2.append(float(row[header[1]]) if float(row[header[1]]) >= 0 else 0)
         barWidth = 0.5
-
-        fig, ax = plt.subplots(figsize=(22, 8))
+        # prepare graph parameters
+        fig, ax = plt.subplots(figsize=(27, 8))
         pos = np.arange(len(a1))
+        # plot graph
         ax.bar(pos, a1, color='red', width=barWidth,
                label=header[0])
         ax.bar(pos, a2, color='blue', width=barWidth,
                label=header[1])
-        ax.set(xlabel='episode', ylabel='reward')
-        ax.legend(loc='upper right')
+        # specify tics
+        for t in plt.xticks()[1]:
+            t.set_fontsize(24)
+        for t in plt.yticks()[1]:
+            t.set_fontsize(24)
+        ax.set_xlabel('episode', fontsize=26)
+        ax.set_ylabel('reward', fontsize=26)
+        ax.legend(loc='upper right', fontsize=26)
         ax.grid()
         save_dir = os.path.dirname(fig_path)
         if not os.path.exists(save_dir):
@@ -334,14 +392,21 @@ def plot_curve(csv_path, save_path, a):
         for row in reader:
             xs.append(int(row['episode']))
             ys.append(float(row['reward']))
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(7.5, 6))
+        # plot graph
         ax.plot(xs, ys, label=a)
-        ax.set(xlabel='episode', ylabel='reward')
-        ax.legend()
+        # name axis
+        ax.set_xlabel('episode', fontsize=16)
+        ax.set_ylabel('reward', fontsize=16)
+        ax.legend(fontsize=16)
+        # set tics
+        for t in plt.xticks()[1]:
+            t.set_fontsize(16)
+        for t in plt.yticks()[1]:
+            t.set_fontsize(16)
         ax.grid()
-
+        # save graph
         save_dir = os.path.dirname(save_path)
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-
         fig.savefig(save_path)

@@ -4,6 +4,7 @@ import os
 import argparse
 
 import rlcard
+from agents.vanilla_dqn.vanilla_dqn import Vanilla_DQN_agent
 from rlcard.agents import (
     OutcomeCFRAgent,
     RandomAgent,
@@ -44,7 +45,8 @@ def train(args):
         ),
     )
     agent.load()  # If we have saved model, we first load the model
-
+    agent2 = Vanilla_DQN_agent()
+    agent2.load(os.path.join('experiments/double_dqn_model/ledh_against_random'))
     # Evaluate CFR against random
     eval_env.set_agents([
         agent,
@@ -60,14 +62,15 @@ def train(args):
             if episode % args.evaluate_every == 0:
                 agent.update_avg_policy()
                 agent.save()  # Save model
+                rewards, report = tournament(
+                    eval_env,
+                    args.num_eval_games,
+                    ['outcome', 'random'],
+                    False
+                )
                 logger.log_performance(
                     episode,
-                    tournament(
-                        eval_env,
-                        args.num_eval_games,
-                        ['outcome', 'random'],
-                        False
-                    )[0]
+                    rewards[0]
                 )
 
         # Get the paths
@@ -77,6 +80,7 @@ def train(args):
 
 
 if __name__ == '__main__':
+    # create options for parser
     parser = argparse.ArgumentParser("CFR example in RLCard")
     parser.add_argument(
         '--seed',
@@ -86,7 +90,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--num_episodes',
         type=int,
-        default=7000,
+        default=14000,
     )
     parser.add_argument(
         '--num_eval_games',
@@ -105,5 +109,5 @@ if __name__ == '__main__':
     )
 
     args = parser.parse_args()
-
+    # train model with options from parser
     train(args)
