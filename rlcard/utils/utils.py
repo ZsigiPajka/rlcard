@@ -242,11 +242,12 @@ def multy_tournament(env, num):
     return rewards
 
 
-def plot_stats(rewards, save_path, labels):
+def plot_stats(rewards, avg_rewards, save_path, labels):
     '''
     Plot graph from provided array into specified location with specified labels
         Args:
-            rewards(array): values to plot
+            rewards(list): values to plot
+            avg_rewards(list) moving average values
             save_path(str): save location
             labels(str array): labels to display in graph
     '''
@@ -255,9 +256,14 @@ def plot_stats(rewards, save_path, labels):
     # prepare graph parapeters
     fig, ax = plt.subplots(figsize=(15, 7))
     xs = np.arange(len(rewards[0]))
+    xm = np.arange(len(avg_rewards[0]))
+    colors = ['lightsteelblue', 'palegreen','lightcoral']
+    avg_colors = ['mediumblue', 'green', 'crimson']
     # plot values
-    for (label, reward) in zip(labels, rewards):
-        ax.plot(xs, reward, label=label)
+    for i in range (len(rewards)):
+        ax.plot(xs, rewards[i], label='_nolegend_', color=colors[i])
+    for i in range(len(avg_rewards)):
+        ax.plot(xm, avg_rewards[i], label=labels[i], color=avg_colors[i])
     # name axis
     ax.set_xlabel('episode', fontsize=21)
     ax.set_ylabel('reward', fontsize=21)

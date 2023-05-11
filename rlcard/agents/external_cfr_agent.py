@@ -19,7 +19,6 @@ class ExternalCFRAgent():
         self.use_raw = False
         self.env = env
         self.model_path = model_path
-
         # A policy is a dict state_str -> action probabilities
         self.policy = collections.defaultdict(list)
         self.policy_sum = collections.defaultdict(np.array)

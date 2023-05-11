@@ -146,6 +146,30 @@ def evaluation(args, detailed, env, figpath):
     return rewards, report
 
 
+def moving_avg(arr, window_size):
+    i = 0
+    # Initialize an empty list to store moving averages
+    moving_averages = []
+
+    # Loop through the array to consider
+    # every window of size 3
+    while i < len(arr) - window_size + 1:
+        # Store elements from i to i+window_size
+        # in list to get the current window
+        window = arr[i: i + window_size]
+
+        # Calculate the average of current window
+        window_average = round(sum(window) / window_size, 2)
+
+        # Store the average of current
+        # window in moving average list
+        moving_averages.append(window_average)
+
+        # Shift window to right by one position
+        i += 1
+    return moving_averages
+
+
 # evaluate all DQN models vs all CFR models and export graphs
 def make_stats():
     global args
@@ -166,6 +190,7 @@ def make_stats():
     f = open("eval_against_dqn.txt", "a")
 
     rewards = []
+    avg_rewards = []
     labels = []
     # main loop iterates over CFR agents
     for cfr in agents:
@@ -199,10 +224,14 @@ def make_stats():
             log_dir = 'experiments/evaluations/'
             fig_path = os.path.join(log_dir, agents[cfr] + '_vs_' + dqn_agents[agent] + '.png')
             # create graph
-            plot_stats(rewards, fig_path, labels)
+            for i in range(len(rewards)):
+                avg_rewards.append(moving_avg(rewards[i], 10))
+            # print(avg_rewards[0])
+            plot_stats(rewards, avg_rewards, fig_path, labels)
             # reset variables for next evaluation
             labels = []
             rewards = []
+            avg_rewards = []
     # close file and write message, when evaluation is finished
     f.close()
     print('Stats saved.')
@@ -275,7 +304,7 @@ if __name__ == '__main__':
         ]
     )
     args = parser.parse_args()
-
+    make_stats()
     # put variables into parser
     # args = parser.parse_args(['--models',
     #                           'experiments/leduc_holdem_cfr_result/outcome_cfr_model',
@@ -286,4 +315,4 @@ if __name__ == '__main__':
     #                           ]
     #                          )
 
-    evaluate(args)
+    # evaluate(args)
